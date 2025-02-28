@@ -1,0 +1,7 @@
+requests==2.31.0
+python-dotenv==1.0.0
+kafka-python==2.0.2
+PyGithub==1.59.1
+tenacity==8.2.3
+pydantic==2.5.2
+loguru==0.7.2 

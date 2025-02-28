@@ -1,0 +1,184 @@
+version: '3'
+
+services:
+  # Zookeeper and Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - github-events-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - github-events-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - github-events-network
+
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: kafka-setup
+    depends_on:
+      - kafka
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka to be ready...' &&
+        cub kafka-ready -b kafka:9092 1 120 &&
+        echo 'Creating Kafka topics...' &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic github-events --partitions 3 --replication-factor 1 --config retention.ms=86400000 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic github-events-processed --partitions 3 --replication-factor 1 --config retention.ms=86400000 &&
+        echo 'Successfully created the following topics:' &&
+        kafka-topics --bootstrap-server kafka:9092 --list
+      "
+    environment:
+      KAFKA_BROKER_ID: ignored
+      KAFKA_ZOOKEEPER_CONNECT: ignored
+    networks:
+      - github-events-network
+
+  # PostgreSQL Database
+  postgres:
+    build:
+      context: ../database
+      dockerfile: Dockerfile
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: github_events
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - github-events-network
+
+  # Grafana for Visualization
+  grafana:
+    build:
+      context: ../grafana
+      dockerfile: Dockerfile
+    container_name: grafana
+    depends_on:
+      - postgres
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - github-events-network
+
+  # GitHub Events Collector
+  github-events-collector:
+    build:
+      context: ../data-collector
+      dockerfile: Dockerfile
+    container_name: github-events-collector
+    depends_on:
+      - kafka
+      - kafka-setup
+    environment:
+      GITHUB_API_TOKEN: ${GITHUB_API_TOKEN}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: github-events
+      POLL_INTERVAL: 60
+      MAX_PAGES_PER_POLL: 10
+      LOG_LEVEL: INFO
+    restart: unless-stopped
+    networks:
+      - github-events-network
+
+  # Spark Streaming Job
+  spark-streaming:
+    build:
+      context: ../spark-jobs
+      dockerfile: Dockerfile
+    container_name: spark-streaming
+    depends_on:
+      - kafka
+      - postgres
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_INPUT: github-events
+      KAFKA_TOPIC_OUTPUT: github-events-processed
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/github_events
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      CHECKPOINT_LOCATION: /tmp/checkpoints
+    volumes:
+      - spark-checkpoints:/tmp/checkpoints
+    restart: unless-stopped
+    networks:
+      - github-events-network
+
+networks:
+  github-events-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  grafana-data:
+  spark-checkpoints: 
