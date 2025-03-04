@@ -45,12 +45,18 @@ This will start all components:
 docker-compose -f docker/docker-compose.yml ps
 ```
 
-2. Access the Kafka UI to see events being collected:
+2. Use the monitoring script to check the health of all services:
+
+```bash
+./monitor.sh
+```
+
+3. Access the Kafka UI to see events being collected:
    - Open http://localhost:8080 in your browser
    - Navigate to the "Topics" section
    - Check that the `github-events` topic exists and has messages
 
-3. Access Grafana to see the analytics dashboards:
+4. Access Grafana to see the analytics dashboards:
    - Open http://localhost:3000 in your browser
    - Login with username `admin` and password `admin`
    - Navigate to the "GitHub Events Overview" dashboard
@@ -83,7 +89,15 @@ In Grafana, explore the different visualizations:
 - User activity
 - Programming language trends
 
-## Step 6: Stop the System
+## Step 6: Run Tests (Optional)
+
+If you want to run the tests:
+
+```bash
+./run_tests.sh
+```
+
+## Step 7: Stop the System
 
 When you're done, stop all services:
 
@@ -95,14 +109,19 @@ docker-compose -f docker/docker-compose.yml down
 
 If you encounter issues:
 
-1. Check the logs of specific components:
+1. Use the monitoring script to check the health of all services:
+```bash
+./monitor.sh
+```
+
+2. Check the logs of specific components:
 ```bash
 docker logs <container-name>
 ```
 
-2. Verify that all services can communicate with each other
-3. Check that your GitHub API token is valid
-4. Ensure Docker has enough resources allocated
+3. Verify that all services can communicate with each other
+4. Check that your GitHub API token is valid
+5. Ensure Docker has enough resources allocated
 
 ## Next Steps
 

@@ -11,8 +11,9 @@ This guide will help you understand the GitHub Events Analytics project, the tec
 5. [Component Deep Dives](#5-component-deep-dives)
 6. [Running and Testing the Project](#6-running-and-testing-the-project)
 7. [Monitoring and Troubleshooting](#7-monitoring-and-troubleshooting)
-8. [Next Steps and Extensions](#8-next-steps-and-extensions)
-9. [Learning Resources](#9-learning-resources)
+8. [Development Workflow](#8-development-workflow)
+9. [Next Steps and Extensions](#9-next-steps-and-extensions)
+10. [Learning Resources](#10-learning-resources)
 
 ## 1. Introduction to Data Streaming
 
@@ -124,6 +125,7 @@ The data collector is a Python application that:
 Key files:
 - `github_events_collector.py`: Main collector script
 - `event_parser.py`: Utilities for parsing and validating events
+- `test_github_events_collector.py`: Unit tests for the collector
 
 ### Kafka Setup (`kafka-setup/`)
 
@@ -140,8 +142,9 @@ The Spark streaming application:
 - Calculates metrics using window functions
 - Writes results to PostgreSQL
 
-Key file:
+Key files:
 - `process_github_events.py`: Main Spark streaming job
+- `test_process_github_events.py`: Unit tests for the Spark job
 
 ### Database (`database/`)
 
@@ -161,11 +164,163 @@ Grafana dashboards that visualize:
 - User activity
 - Programming language trends
 
+### Testing and CI/CD
+
+The project includes:
+- Unit tests for key components
+- A test runner script (`run_tests.sh`)
+- CI/CD workflow (`.github/workflows/ci.yml`)
+
+### Monitoring and Management
+
+The project includes:
+- A monitoring script (`monitor.sh`) to check system health
+- A cleanup script (`cleanup.sh`) to reset the environment
+
 ## 6. Running and Testing the Project
 
-See the [Running and Testing](#running-and-testing-the-project) section below for detailed instructions.
+### Prerequisites
+
+Before starting, ensure you have:
+
+- Docker and Docker Compose installed
+- Git installed
+- A GitHub API token (for higher rate limits)
+
+### Step 1: Clone the Repository
+
+If you haven't already:
+
+```bash
+git clone https://github.com/yourusername/github-events-analytics.git
+cd github-events-analytics
+```
+
+### Step 2: Configure Environment Variables
+
+Create a `.env` file from the template:
+
+```bash
+cp .env.template .env
+```
+
+Edit the `.env` file and add your GitHub API token:
+
+```
+GITHUB_API_TOKEN=your_github_token_here
+```
+
+### Step 3: Start the Services
+
+Run the start script:
+
+```bash
+./start.sh
+```
+
+This will:
+1. Start Zookeeper and Kafka
+2. Start PostgreSQL
+3. Start the GitHub Events collector
+4. Start the Spark streaming job
+5. Start Grafana
+
+### Step 4: Verify Services are Running
+
+Check that all services are running using the monitoring script:
+
+```bash
+./monitor.sh
+```
+
+This will check:
+- Service health for all containers
+- Kafka topic existence and message flow
+- PostgreSQL connection and table existence
+- Grafana availability
+- Data flow through the system
+
+### Step 5: Access the Dashboards
+
+1. **Kafka UI**: http://localhost:8080
+   - Verify that the `github-events` topic exists
+   - Check that messages are being produced
+
+2. **Grafana**: http://localhost:3000
+   - Login with admin/admin
+   - Navigate to the GitHub Events Overview dashboard
+   - You should start seeing data within a few minutes
+
+### Step 6: Test Data Flow
+
+To verify the entire pipeline is working:
+
+1. Check Kafka UI to see events being produced
+2. Connect to PostgreSQL to see data being stored:
+
+```bash
+docker exec -it postgres psql -U postgres -d github_events
+```
+
+Then run:
+
+```sql
+SELECT COUNT(*) FROM events;
+```
+
+You should see a count greater than 0 after a few minutes.
+
+### Step 7: Explore the Data
+
+In Grafana, explore the different panels:
+- Repository Activity Over Time
+- Event Type Distribution
+- Top Programming Languages
+- Top Repositories
+- Most Active Users
+- Overall Activity Trends
+
+### Step 8: Running Tests
+
+To run the automated tests:
+
+```bash
+./run_tests.sh
+```
+
+This will run unit tests for:
+- The GitHub Events collector
+- The Spark processing job
+
+### Step 9: Stop and Clean Up
+
+When you're done, stop all services and clean up:
+
+```bash
+./cleanup.sh
+```
+
+This will:
+- Stop all Docker containers
+- Remove Docker volumes
+- Delete temporary files and logs
 
 ## 7. Monitoring and Troubleshooting
+
+### Using the Monitoring Script
+
+The `monitor.sh` script provides a comprehensive health check:
+
+```bash
+./monitor.sh
+```
+
+It checks:
+- Container status for all services
+- Kafka topics and message flow
+- PostgreSQL connection and tables
+- Grafana availability
+- End-to-end data flow
 
 ### Monitoring Tools
 
@@ -192,7 +347,62 @@ See the [Running and Testing](#running-and-testing-the-project) section below fo
   - Check Grafana data source configuration
   - Verify dashboard queries
 
-## 8. Next Steps and Extensions
+### Viewing Logs
+
+To view logs for a specific service:
+
+```bash
+docker logs [service-name]
+```
+
+For example:
+
+```bash
+docker logs github-events-collector
+docker logs spark-streaming
+```
+
+## 8. Development Workflow
+
+### Contributing to the Project
+
+The project follows a standard GitHub workflow:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests locally
+5. Submit a pull request
+
+For detailed guidelines, see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+
+### Continuous Integration
+
+The project uses GitHub Actions for CI/CD:
+
+- Automated tests run on every pull request
+- Code quality checks ensure consistency
+- Integration tests verify system functionality
+
+The workflow is defined in `.github/workflows/ci.yml`.
+
+### Testing Strategy
+
+The project employs multiple testing levels:
+
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test interactions between components
+- **End-to-End Tests**: Test the entire system flow
+
+### Code Standards
+
+The project follows:
+
+- PEP 8 style guide for Python code
+- Comprehensive docstrings and comments
+- Clear commit messages
+
+## 9. Next Steps and Extensions
 
 Once you're comfortable with the basic system, consider these extensions:
 
@@ -202,7 +412,7 @@ Once you're comfortable with the basic system, consider these extensions:
 - Scale the system to handle higher volumes
 - Add authentication and multi-user support
 
-## 9. Learning Resources
+## 10. Learning Resources
 
 ### Apache Kafka
 
@@ -233,151 +443,4 @@ Once you're comfortable with the basic system, consider these extensions:
 
 ---
 
-# Running and Testing the Project
-
-This section provides step-by-step instructions for running and testing the GitHub Events Analytics project.
-
-## Prerequisites
-
-Before starting, ensure you have:
-
-- Docker and Docker Compose installed
-- Git installed
-- A GitHub API token (for higher rate limits)
-
-## Step 1: Clone the Repository
-
-If you haven't already:
-
-```bash
-git clone https://github.com/yourusername/github-events-analytics.git
-cd github-events-analytics
-```
-
-## Step 2: Configure Environment Variables
-
-Create a `.env` file from the template:
-
-```bash
-cp .env.template .env
-```
-
-Edit the `.env` file and add your GitHub API token:
-
-```
-GITHUB_API_TOKEN=your_github_token_here
-```
-
-## Step 3: Start the Services
-
-Run the start script:
-
-```bash
-./start.sh
-```
-
-This will:
-1. Start Zookeeper and Kafka
-2. Start PostgreSQL
-3. Start the GitHub Events collector
-4. Start the Spark streaming job
-5. Start Grafana
-
-## Step 4: Verify Services are Running
-
-Check that all services are running:
-
-```bash
-docker-compose -f docker/docker-compose.yml ps
-```
-
-All services should show as "Up" status.
-
-## Step 5: Access the Dashboards
-
-1. **Kafka UI**: http://localhost:8080
-   - Verify that the `github-events` topic exists
-   - Check that messages are being produced
-
-2. **Grafana**: http://localhost:3000
-   - Login with admin/admin
-   - Navigate to the GitHub Events Overview dashboard
-   - You should start seeing data within a few minutes
-
-## Step 6: Test Data Flow
-
-To verify the entire pipeline is working:
-
-1. Check Kafka UI to see events being produced
-2. Connect to PostgreSQL to see data being stored:
-
-```bash
-docker exec -it postgres psql -U postgres -d github_events
-```
-
-Then run:
-
-```sql
-SELECT COUNT(*) FROM events;
-```
-
-You should see a count greater than 0 after a few minutes.
-
-## Step 7: Explore the Data
-
-In Grafana, explore the different panels:
-- Repository Activity Over Time
-- Event Type Distribution
-- Top Programming Languages
-- Top Repositories
-- Most Active Users
-- Overall Activity Trends
-
-## Step 8: Stop the Services
-
-When you're done, stop all services:
-
-```bash
-docker-compose -f docker/docker-compose.yml down
-```
-
-## Troubleshooting
-
-### No Events Appearing
-
-If no events appear in Kafka or PostgreSQL:
-
-1. Check the GitHub Events collector logs:
-```bash
-docker logs github-events-collector
-```
-
-2. Verify your GitHub API token is valid
-3. Check that the GitHub Events API is returning data:
-```bash
-curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/events
-```
-
-### Spark Job Failing
-
-If the Spark job is failing:
-
-1. Check the Spark logs:
-```bash
-docker logs spark-streaming
-```
-
-2. Verify Kafka is running and accessible
-3. Verify PostgreSQL is running and accessible
-
-### No Data in Grafana
-
-If Grafana shows no data:
-
-1. Verify the PostgreSQL data source is configured correctly
-2. Check that data exists in the PostgreSQL tables
-3. Verify the dashboard queries are correct
-
----
-
-This learning guide should provide you with a comprehensive understanding of the GitHub Events Analytics project and how to work with it. As you become more familiar with the system, you can explore more advanced features and extensions. 
+This learning guide provides a comprehensive understanding of the GitHub Events Analytics project. As you become more familiar with the system, you can explore more advanced features and contribute to its development. The project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 

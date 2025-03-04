@@ -32,6 +32,12 @@ github-events-analytics/
 ├── database/             # Database schema and migration scripts
 ├── grafana/              # Grafana dashboard definitions
 ├── docker/               # Docker compose files for the entire stack
+├── .github/              # GitHub Actions workflows for CI/CD
+├── start.sh              # Script to start all services
+├── monitor.sh            # Script to monitor service health
+├── cleanup.sh            # Script to clean up the environment
+├── CONTRIBUTING.md       # Guidelines for contributing to the project
+├── LICENSE               # MIT License
 └── README.md             # This file
 ```
 
@@ -54,7 +60,7 @@ The system analyzes the following metrics:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/github-events-analytics.git
+   git clone https://github.com/javid912/github-events-analytics.git
    cd github-events-analytics
    ```
 
@@ -66,12 +72,17 @@ The system analyzes the following metrics:
    POSTGRES_DB=github_events
    ```
 
-3. Start the entire stack using Docker Compose:
+3. Start the entire stack using the start script:
    ```
-   docker-compose -f docker/docker-compose.yml up -d
+   ./start.sh
    ```
 
-4. Access the Grafana dashboard:
+4. Monitor the health of all services:
+   ```
+   ./monitor.sh
+   ```
+
+5. Access the Grafana dashboard:
    ```
    http://localhost:3000
    ```
@@ -99,12 +110,63 @@ PostgreSQL database schema with tables for raw events, processed metrics, and ag
 
 Pre-configured dashboards for visualizing GitHub event metrics and trends.
 
-## Stopping the Services
+## Testing
 
-To stop all services:
+The project includes comprehensive unit tests for all components:
+
+1. Run all tests:
+   ```
+   ./run_tests.sh
+   ```
+
+2. Run specific component tests:
+   ```
+   cd data-collector
+   python -m unittest test_github_events_collector.py
+   
+   cd ../spark-jobs
+   python -m unittest test_process_github_events.py
+   ```
+
+3. Run tests with coverage:
+   ```
+   pytest --cov=data-collector --cov=spark-jobs
+   ```
+
+## Continuous Integration
+
+This project uses GitHub Actions for CI/CD:
+
+- Automated tests run on every push and pull request
+- Code quality checks (linting, formatting)
+- Docker images are built and pushed to Docker Hub on successful merges to main
+
+## Monitoring
+
+To monitor the health of all services:
+
 ```
-docker-compose -f docker/docker-compose.yml down
+./monitor.sh
 ```
+
+This script checks:
+- Service status (running, healthy, unhealthy)
+- Kafka topics existence
+- PostgreSQL tables
+- Grafana availability
+- Data flow through the system
+
+## Stopping and Cleaning Up
+
+1. To stop all services:
+   ```
+   docker-compose -f docker/docker-compose.yml down
+   ```
+
+2. To clean up the environment (stop services, remove volumes and temporary files):
+   ```
+   ./cleanup.sh
+   ```
 
 ## Development
 
@@ -130,8 +192,8 @@ To run individual components during development:
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests. 

@@ -8,6 +8,9 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Export environment variables from .env file
+export $(grep -v '^#' .env | xargs)
+
 # Start the entire stack
 echo "Starting GitHub Events Analytics stack..."
 docker-compose -f docker/docker-compose.yml up -d
