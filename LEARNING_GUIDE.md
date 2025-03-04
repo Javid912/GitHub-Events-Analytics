@@ -12,8 +12,10 @@ This guide will help you understand the GitHub Events Analytics project, the tec
 6. [Running and Testing the Project](#6-running-and-testing-the-project)
 7. [Monitoring and Troubleshooting](#7-monitoring-and-troubleshooting)
 8. [Development Workflow](#8-development-workflow)
-9. [Next Steps and Extensions](#9-next-steps-and-extensions)
-10. [Learning Resources](#10-learning-resources)
+9. [Advanced Deployment Options](#9-advanced-deployment-options)
+10. [Using Kafka UI and Grafana](#10-using-kafka-ui-and-grafana)
+11. [Next Steps and Extensions](#11-next-steps-and-extensions)
+12. [Learning Resources](#12-learning-resources)
 
 ## 1. Introduction to Data Streaming
 
@@ -402,7 +404,224 @@ The project follows:
 - Comprehensive docstrings and comments
 - Clear commit messages
 
-## 9. Next Steps and Extensions
+## 9. Advanced Deployment Options
+
+### Running Components Separately
+
+For resource-constrained environments, you can run components separately or in smaller groups:
+
+#### Minimal Setup (Data Collection Only)
+
+This setup allows you to collect GitHub events and store them in Kafka without processing:
+
+```bash
+# Start only Zookeeper, Kafka, and Kafka UI
+docker-compose -f docker/docker-compose.yml up -d zookeeper kafka kafka-ui kafka-setup
+
+# Once those are running, start the collector
+docker-compose -f docker/docker-compose.yml up -d github-events-collector
+```
+
+#### Processing Setup (Data Processing Only)
+
+This setup allows you to process previously collected events:
+
+```bash
+# Start Kafka, PostgreSQL, and Grafana
+docker-compose -f docker/docker-compose.yml up -d zookeeper kafka postgres grafana
+
+# Once those are running, start the Spark job
+docker-compose -f docker/docker-compose.yml up -d spark-streaming
+```
+
+#### Testing Individual Components
+
+You can test individual components without Docker:
+
+1. **Data Collector**:
+```bash
+cd data-collector
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python -m unittest test_github_events_collector.py
+```
+
+2. **Spark Jobs**:
+```bash
+cd spark-jobs
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python -m unittest test_process_github_events.py
+```
+
+### Cloud Deployment Options
+
+#### Google Cloud Platform (GCP) Free Tier
+
+You can deploy this project on GCP's free tier with careful resource management:
+
+**Components to Use:**
+- Compute Engine e2-micro instances (1 shared vCPU, 1GB memory)
+- Cloud Storage for data persistence
+- Cloud SQL (PostgreSQL) with minimal provisioning
+
+**Cost Control Measures:**
+1. **Set Budget Alerts**: Create a budget alert at $1 to get notified before exceeding free tier limits
+2. **Use Preemptible VMs**: For non-critical components to reduce costs
+3. **Schedule Shutdowns**: Use Cloud Scheduler to stop instances during inactive periods
+4. **Data Retention Policy**: Implement automatic data pruning (see Data Management section)
+5. **Resource Monitoring**: Use Cloud Monitoring to track resource usage
+
+**Deployment Architecture:**
+- 1 VM for Zookeeper + Kafka
+- 1 VM for PostgreSQL + Grafana
+- 1 VM for GitHub collector + Spark job (or run these as scheduled jobs)
+
+**Estimated Free Tier Usage:**
+- Compute Engine: ~720 hours of e2-micro usage per month (within free tier)
+- Cloud Storage: <5GB storage (within free tier)
+- Cloud SQL: Minimal usage with proper data retention
+
+#### Data Management and Retention
+
+The system includes built-in data retention mechanisms:
+
+1. **Kafka Topic Retention**: Events in Kafka are automatically deleted after the configured retention period (default: 24 hours)
+   ```
+   kafka-topics --bootstrap-server kafka:9092 --alter --topic github-events --config retention.ms=86400000
+   ```
+
+2. **Database Pruning**: You can set up a cron job to regularly delete old data:
+   ```sql
+   DELETE FROM events WHERE created_at < NOW() - INTERVAL '30 days';
+   DELETE FROM repository_metrics WHERE window_end < NOW() - INTERVAL '30 days';
+   ```
+
+3. **Aggregation Strategy**: Store aggregated metrics for longer periods while pruning raw event data:
+   ```sql
+   -- Keep detailed data for 7 days
+   DELETE FROM events WHERE created_at < NOW() - INTERVAL '7 days';
+   
+   -- Keep hourly aggregations for 30 days
+   DELETE FROM repository_metrics WHERE window_end < NOW() - INTERVAL '30 days' AND window_end - window_start = INTERVAL '1 hour';
+   
+   -- Keep daily aggregations for 90 days
+   DELETE FROM repository_metrics WHERE window_end < NOW() - INTERVAL '90 days' AND window_end - window_start = INTERVAL '1 day';
+   ```
+
+## 10. Using Kafka UI and Grafana
+
+### Kafka UI
+
+Kafka UI provides a web interface to monitor and manage your Kafka cluster.
+
+#### Accessing Kafka UI
+- URL: http://localhost:8080
+- No authentication required by default
+
+#### Key Features
+
+1. **Topics Overview**:
+   - View all topics and their configurations
+   - Monitor message counts and partition distribution
+   - Check consumer lag
+
+2. **Topic Details**:
+   - Click on a topic name (e.g., `github-events`) to see details
+   - View messages in the topic (useful for debugging)
+   - Check partitions and their leaders
+
+3. **Producing Messages**:
+   - Use the "Produce Message" feature to manually send messages to a topic
+   - Useful for testing the pipeline without waiting for GitHub events
+
+4. **Consumer Groups**:
+   - Monitor consumer groups and their offsets
+   - Check for consumer lag or stalled consumers
+
+#### Common Tasks
+
+1. **Checking if events are being collected**:
+   - Navigate to the `github-events` topic
+   - Check the "Messages" count - it should be increasing
+   - View sample messages to verify data quality
+
+2. **Troubleshooting**:
+   - If no messages are appearing, check the GitHub collector logs
+   - If consumer lag is growing, the Spark job may not be keeping up
+
+### Grafana
+
+Grafana is a visualization platform that creates dashboards from your data sources.
+
+#### Accessing Grafana
+- URL: http://localhost:3000
+- Default credentials: admin/admin
+
+#### Key Features
+
+1. **Dashboards**:
+   - Pre-configured dashboards are available in the "GitHub" folder
+   - The main dashboard is "GitHub Events Overview"
+
+2. **Data Sources**:
+   - PostgreSQL is configured as a data source
+   - You can verify the connection in Settings > Data Sources
+
+3. **Panels**:
+   - Each dashboard contains multiple visualization panels
+   - Hover over panels to see detailed metrics
+   - Use the time range selector at the top right to change the time window
+
+4. **Exploring Data**:
+   - Use the "Explore" feature to run ad-hoc queries
+   - Create custom visualizations based on your queries
+
+#### Using the GitHub Events Dashboard
+
+The pre-configured dashboard includes:
+
+1. **Repository Activity**:
+   - Shows stars, forks, and watches over time
+   - Identifies trending repositories
+
+2. **Event Distribution**:
+   - Displays the distribution of event types
+   - Shows activity patterns over time
+
+3. **User Activity**:
+   - Highlights the most active users
+   - Shows user activity patterns
+
+4. **Language Trends**:
+   - Displays popular programming languages
+   - Shows language adoption trends
+
+#### Creating Custom Dashboards
+
+1. Click the "+" icon in the sidebar and select "Dashboard"
+2. Click "Add new panel"
+3. Select PostgreSQL as the data source
+4. Write a SQL query to fetch the data you want to visualize
+5. Choose a visualization type (graph, table, gauge, etc.)
+6. Configure the panel options and save
+
+Example query for repository stars:
+```sql
+SELECT 
+  repo_name,
+  window_end as time,
+  stars
+FROM repository_metrics
+WHERE 
+  window_end > $__timeFrom() AND 
+  window_end < $__timeTo()
+ORDER BY time
+```
+
+## 11. Next Steps and Extensions
 
 Once you're comfortable with the basic system, consider these extensions:
 
@@ -412,7 +631,7 @@ Once you're comfortable with the basic system, consider these extensions:
 - Scale the system to handle higher volumes
 - Add authentication and multi-user support
 
-## 10. Learning Resources
+## 12. Learning Resources
 
 ### Apache Kafka
 

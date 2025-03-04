@@ -25,7 +25,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "P214B5B846CF3925F"
+        "uid": "PCC52D03280B7034C"
       },
       "fieldConfig": {
         "defaults": {
@@ -99,7 +99,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "P214B5B846CF3925F"
+            "uid": "PCC52D03280B7034C"
           },
           "editorMode": "code",
           "format": "time_series",
@@ -131,7 +131,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "P214B5B846CF3925F"
+        "uid": "PCC52D03280B7034C"
       },
       "fieldConfig": {
         "defaults": {
@@ -179,7 +179,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "P214B5B846CF3925F"
+            "uid": "PCC52D03280B7034C"
           },
           "editorMode": "code",
           "format": "table",
@@ -211,7 +211,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "P214B5B846CF3925F"
+        "uid": "PCC52D03280B7034C"
       },
       "fieldConfig": {
         "defaults": {
@@ -282,7 +282,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "P214B5B846CF3925F"
+            "uid": "PCC52D03280B7034C"
           },
           "editorMode": "code",
           "format": "table",
@@ -314,7 +314,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "P214B5B846CF3925F"
+        "uid": "PCC52D03280B7034C"
       },
       "fieldConfig": {
         "defaults": {
@@ -423,7 +423,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "P214B5B846CF3925F"
+            "uid": "PCC52D03280B7034C"
           },
           "editorMode": "code",
           "format": "table",
@@ -455,7 +455,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "P214B5B846CF3925F"
+        "uid": "PCC52D03280B7034C"
       },
       "fieldConfig": {
         "defaults": {
@@ -503,7 +503,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "P214B5B846CF3925F"
+            "uid": "PCC52D03280B7034C"
           },
           "editorMode": "code",
           "format": "table",
@@ -535,7 +535,7 @@
     {
       "datasource": {
         "type": "postgres",
-        "uid": "P214B5B846CF3925F"
+        "uid": "PCC52D03280B7034C"
       },
       "fieldConfig": {
         "defaults": {
@@ -610,7 +610,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "P214B5B846CF3925F"
+            "uid": "PCC52D03280B7034C"
           },
           "editorMode": "code",
           "format": "time_series",
